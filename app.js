@@ -100,14 +100,23 @@ app.message('', async ({ message, say, client, ...r }) => {
       say('User not found')
     } else {
       await say({
-        text: `User id ${userId}`,
+        text: `Analyzing...`,
         thread_ts
-      });
+      })
       const responses = getResponses({ userId })
       const { min, max, avg } = getStatistics({ responses })
-      await say(`Min response: ${min || 'no data'}`)
+      await say({
+        text: `
+          User id ${userId}
+          Min response: ${min || 'no data'}
+          Max response: ${max || 'no data'}
+          Avg response: ${avg || 'no data'}
+        `,
+        thread_ts
+      });
+      /*await say(`Min response: ${min || 'no data'}`)
       await say(`Max response: ${max || 'no data'}`)
-      await say(`Avg response: ${avg || 'no data'}`)
+      await say(`Avg response: ${avg || 'no data'}`)*/
       /*const nums = responses.map(e => e.rt)
       if (nums.length > 0) {
         await say(`Min response = ${Math.min(...nums)}`)
@@ -126,16 +135,27 @@ app.message('', async ({ message, say, client, ...r }) => {
     const usersList = await client.users.list()
     const users = usersList.members
     console.log({ users })
+    await say({
+        text: `Analyzing...`,
+        thread_ts
+      })
     users.forEach(async e => {
       //getResponses({ user: e.id, seconds, startDate, endDate })
       const responses = getResponses({ 
         userId: e.id, seconds, startDate, endDate 
       })
       const { min, max, avg } = getStatistics({ responses })
-      await say(`User: ${e.name || 'no data'}`)
-      await say(`Min response: ${min || 'no data'}`)
+      await say({
+        text: `User: ${e.name || 'no data'}
+          Min response: ${min || 'no data'}
+          Max response: ${max || 'no data'}
+          Avg response: ${avg || 'no data'}
+      `,
+        thread_ts
+      })
+      /*await say(`Min response: ${min || 'no data'}`)
       await say(`Max response: ${max || 'no data'}`)
-      await say(`Avg response: ${avg || 'no data'}`)
+      await say(`Avg response: ${avg || 'no data'}`)*/
     })
   }
 });
