@@ -12,7 +12,24 @@ for (const k in config) {
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   socketMode: true,
-  appToken: process.env.SLACK_APP_TOKEN
+  appToken: process.env.SLACK_APP_TOKEN,
+  customRoutes: [
+    {
+      path: '/health-check',
+      method: ['GET'],
+      handler: (req, res) => {
+        console.log({ req, res })
+        app.client.chat.postMessage({
+          token: process.env.SLACK_BOT_TOKEN,
+          channel: 'C03HN1SFFAL',
+          text: 'Health check test'
+        })
+        res.writeHead(200);
+        res.end('Health check information displayed here!');
+      },
+    },
+    
+  ],
 });
 
 let db = []
