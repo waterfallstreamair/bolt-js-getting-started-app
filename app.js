@@ -1,5 +1,8 @@
 const { App } = require('@slack/bolt');
 //import moment from 'moment'
+const { PrismaClient } = require('@prisma/client')
+
+const prisma = new PrismaClient()
 
 const config = require("dotenv").config().parsed;
 // Overwrite env variables anyways

@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  slackId   String  @unique
+  email     String? @unique
+  name      String?
+  messages Message[]
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  slackId   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  text      String?
+  ts        String
+  blocks    String?
+  published Boolean  @default(false)
+  viewCount Int      @default(0)
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    Int?
+}
