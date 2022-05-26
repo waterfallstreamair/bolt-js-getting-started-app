@@ -60,7 +60,7 @@ const getResponses = ({ userId, seconds, startDate, endDate }) => {
       console.log({ ts: e.ts, prevTs })
       const rt = +e.ts - prevTs
       if ((seconds && rt < seconds) || !seconds) {
-        responses.push({ user: userId, rt })
+        responses.push({ user: userId, rt, text: e.text, ts: e.ts })
         step = 0
         console.log({ responses })
       }
@@ -73,9 +73,9 @@ const getStatistics = ({ responses }) => {
   const nums = responses.map(e => e.rt)
   if (nums.length > 0) {
     return {
-      min: Math.min(...nums),
-      max: Math.max(...nums),
-      avg: nums.reduce((a, b) => a + b) / nums.length
+      min: Math.floor(Math.min(...nums)),
+      max: Math.floor(Math.max(...nums)),
+      avg: Math.floor(nums.reduce((a, b) => a + b) / nums.length)
     }
   } 
   return {
@@ -107,9 +107,6 @@ app.message('', async ({ message, say, client, ...r }) => {
   })
   console.log({ db })
   
-  /*if (message.text == 'show-info') {
-    say('info')
-  }*/
   if (message.text.includes('show-user-info')) {
     const [text, userName, channel] = message.text.split(' ')
     const userId = await userToId({ userName, client })
@@ -125,23 +122,17 @@ app.message('', async ({ message, say, client, ...r }) => {
       await say({
         text: `
           User id ${userId}
-          Min response: ${min || 'no data'}
-          Max response: ${max || 'no data'}
-          Avg response: ${avg || 'no data'}
+          Statistics in seconds:
+          Min response = ${min || 'no data'} 
+          Max response = ${max || 'no data'} 
+          Avg response = ${avg || 'no data'} 
         `,
         thread_ts
       });
-      /*await say(`Min response: ${min || 'no data'}`)
-      await say(`Max response: ${max || 'no data'}`)
-      await say(`Avg response: ${avg || 'no data'}`)*/
-      /*const nums = responses.map(e => e.rt)
-      if (nums.length > 0) {
-        await say(`Min response = ${Math.min(...nums)}`)
-        await say(`Max response = ${Math.max(...nums)}`)
-        await say(`Avg response = ${nums.reduce((a, b) => a + b) / nums.length}`)
-      } else {
-        say('No responces from this user.')
-      }*/
+      await say({
+        text: `Done.`,
+        thread_ts
+      })
     }
   }
   
@@ -157,22 +148,30 @@ app.message('', async ({ message, say, client, ...r }) => {
         thread_ts
       })
     users.forEach(async e => {
-      //getResponses({ user: e.id, seconds, startDate, endDate })
       const responses = getResponses({ 
         userId: e.id, seconds, startDate, endDate 
       })
-      const { min, max, avg } = getStatistics({ responses })
-      await say({
-        text: `User: ${e.name || 'no data'}
-          Min response: ${min || 'no data'}
-          Max response: ${max || 'no data'}
-          Avg response: ${avg || 'no data'}
-      `,
-        thread_ts
-      })
-      /*await say(`Min response: ${min || 'no data'}`)
-      await say(`Max response: ${max || 'no data'}`)
-      await say(`Avg response: ${avg || 'no data'}`)*/
+      if (responses.length) {
+        const { min, max, avg } = getStatistics({ responses })
+        await say({
+          text: `User: ${e.name || 'no data'}
+            Min response: ${min || 'no data'}
+            Max response: ${max || 'no data'}
+            Avg response: ${avg || 'no data'}
+        `,
+          thread_ts
+        })
+        responses.map(async responce => {
+          await say({
+          text: `User: ${e.name || 'no data'}
+            Date: ${responce.ts || ''}
+            Text: ${responce.text || ''}
+            Link: ${''}
+        `,
+          thread_ts
+        })
+        })
+      }
     })
   }
 });
