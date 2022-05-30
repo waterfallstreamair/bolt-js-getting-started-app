@@ -41,31 +41,42 @@ let db = []
   db.push(params)
 }*/
 
-const getResponses = async ({ userId, seconds, startDate, endDate, channel, client }) => {
+const getResponses = async ({ 
+  userId, seconds, start, end, channel, client, say }) => {
+    console.log({ start, end })
   let responses = []
   let prevTs = 0
   let step = 0
   const result = await client.conversations.list()
-  //console.log({ rch: result.channels })
   const channelId = (result.channels.find(e => e.name == channel) || {}).id
-  //console.log('Found channel id:')
-  //console.log({ channelId })
+  
+  if (!channelId) {
+    say('Channel not found.')
+    return []
+  }
+  
   db = await client.conversations.history({
+    channel: channelId,
+    latest: end.unix(),
+    oldest: start.unix(),
+    inclusive: true
+  })
+  
+  /*db = await client.conversations.history({
       channel: channelId,
       //latest: startDate,
       //oldest: endDate,
       //inclusive: true
-  })
-  //console.log({ db })
-  //console.log({ messages: db.messages })
+  })*/
+  db.messages.sort((a, b) => +a.ts - b.ts)
   db.messages.forEach(e => {
-    if (e.text.includes(userId) && step == 0) {
-      console.log({ step, userId, e  })
-      step = 1
+    if (e.text.includes(userId)) {
       prevTs = e.ts
-    } else if (e.user == userId && step == 1) {
-      const rt = +prevTs - e.ts
-      console.log({ step, userId, e, rt })
+      console.log({ mentioned: e })
+    } else if (e.user == userId && prevTs) {
+      const rt = +e.ts - prevTs
+      prevTs = null
+      console.log({ responced: e })
       /*
       if ((seconds && rt < seconds) || !seconds) {
         responses.push({ user: userId, rt, text: e.text, ts: e.ts })
@@ -73,7 +84,6 @@ const getResponses = async ({ userId, seconds, startDate, endDate, channel, clie
       }
       */
       responses.push({ user: userId, rt, text: e.text, ts: e.ts })
-      step = 0
     }
   })
   console.log({ responses })
@@ -140,28 +150,28 @@ app.message('', async ({ message, say, client, ...r }) => {
     const userId = await userToId({ userName, client })
     if (!userId) {
       say('User not found')
-    } else {
-      await say({
-        text: `Analyzing...`,
-        thread_ts
-      })
-      const responses = await getResponses({ userId, channel, startDate, endDate, client })
-      const { min, max, avg } = getStatistics({ responses })
-      await say({
-        text: `
-          User id ${userId}
-          Statistics in seconds:
-          Min response = ${min || 'no data'} 
-          Max response = ${max || 'no data'} 
-          Avg response = ${avg || 'no data'} 
-        `,
-        thread_ts
-      });
-      await say({
-        text: `Done.`,
-        thread_ts
-      })
-    }
+      return
+    } 
+    await say({ text: `Analyzing...`, thread_ts })
+    const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
+    const end = endDate ? moment(endDate) : moment()
+    const responses = await getResponses({ 
+      userId, channel, start, end, client, say 
+    })
+    const { min, max, avg } = getStatistics({ responses })
+    await say({
+      text: `
+        User id ${userId}
+        Statistics for period 
+          from ${start.format('DD-MM-yyyy')} 
+          to ${end.format('DD-MM-yyyy')}:
+        Min response = ${min || 'no data'} 
+        Max response = ${max || 'no data'} 
+        Avg response = ${avg || 'no data'} 
+      `,
+      thread_ts
+    });
+    await say({ text: `Done.`, thread_ts })
   }
   
   /*
