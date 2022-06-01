@@ -48,11 +48,12 @@ const getResponses = async ({
   let prevTs = 0
  
   const result = await client.conversations.list()
-  const channelId = (result.channels.find(e => e.name == channel) || {}).id
+  let channelId = (result.channels.find(e => e.name == channel) || {}).id
   
   if (!channelId) {
-    say('Channel not found.')
-    return []
+    say('Channel not found. Using current channel')
+    channelId = event.channel
+    //return []
   }
   
   db = await client.conversations.history({
@@ -200,7 +201,7 @@ app.message('', async ({ message, say, client, event, ...r }) => {
     const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
     const end = endDate ? moment(endDate) : moment()
     const responses = await getResponses({ 
-      userId, channel: channel || event.channel, start, end, client, say 
+      userId, channel, start, end, client, say 
     })
     const { min, max, avg } = getStatistics({ responses })
     await say({
@@ -218,24 +219,36 @@ app.message('', async ({ message, say, client, event, ...r }) => {
     await say({ text: `Done.`, thread_ts })
   }
   
-  /*
+  
   if (message.text.includes('show-users-log')) {
-    const [text, seconds, startDate, endDate] =
+    const [text, channel, seconds, startDate, endDate] =
       message.text.split(' ')
     console.log({ text, seconds, startDate, endDate })
+    await say({ text: `Analyzing...`, thread_ts })
+    const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
+    const end = endDate ? moment(endDate) : moment()
+    
     const usersList = await client.users.list()
     const users = usersList.members
-    console.log({ users })
-    await say({
-        text: `Analyzing...`,
-        thread_ts
-      })
-    users.forEach(async e => {
-      const responses = getResponses({ 
-        userId: e.id, seconds, startDate, endDate 
-      })
-      if (responses.length) {
-        const { min, max, avg } = getStatistics({ responses })
+    //console.log({ users })
+    
+    await Promise.all(users.map(async e => {
+      
+        const responses = await getResponses({ 
+          userId: e.id, channel, start, end, client, say 
+        })
+        /*const responses = getResponses({ 
+          userId: e.id, seconds, startDate, endDate 
+        })*/
+        if (!responses || !responses.length) {
+          return
+        }
+        
+        /*await say({
+              text: `User: ${e.name || 'name not found'}: `,
+              thread_ts
+            })*/
+        /*const { min, max, avg } = getStatistics({ responses })
         await say({
           text: `User: ${e.name || 'no data'}
             Min response: ${min || 'no data'}
@@ -243,21 +256,28 @@ app.message('', async ({ message, say, client, event, ...r }) => {
             Avg response: ${avg || 'no data'}
         `,
           thread_ts
-        })
-        responses.map(async responce => {
-          await say({
-          text: `User: ${e.name || 'no data'}
-            Date: ${responce.ts || ''}
-            Text: ${responce.text || ''}
-            Link: ${''}
-        `,
-          thread_ts
-        })
-        })
-      }
-    })
+        })*/
+        
+        await Promise.all(responses.filter(r => r.rt > seconds)
+          .map(async responce => {
+            await say({
+              text: `
+                User: ${e.name || 'name not found'}: 
+                Date: ${moment(+responce.ts).format('DD-MM-yyyy hh:mm:ss') || 'time stamp not found'}
+                Response: ${humanizeDuration(moment.duration(responce.rt, 'seconds')) || 'responce time not found'}
+                Text: ${responce.text || 'text not found'}
+                Link: ${'...'}
+                ===================================
+            `,
+              thread_ts
+            })
+          })
+        )
+      })
+    )
+    
+    await say({ text: `Done.`, thread_ts })
   }
-  */
   
 });
 
