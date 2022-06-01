@@ -46,7 +46,7 @@ const getResponses = async ({
     console.log({ start, end })
   let responses = []
   let prevTs = 0
-  let step = 0
+ 
   const result = await client.conversations.list()
   const channelId = (result.channels.find(e => e.name == channel) || {}).id
   
@@ -59,34 +59,67 @@ const getResponses = async ({
     channel: channelId,
     latest: end.unix(),
     oldest: start.unix(),
-    inclusive: true
+    inclusive: true,
+    limit: 999,
+    include_all_metadata: true
   })
+  //console.log({ messages: db.messages })
   
-  /*db = await client.conversations.history({
-      channel: channelId,
-      //latest: startDate,
-      //oldest: endDate,
-      //inclusive: true
-  })*/
+  /*let messages = [...db.messages]
   db.messages.sort((a, b) => +a.ts - b.ts)
-  db.messages.forEach(e => {
-    if (e.text.includes(userId)) {
-      prevTs = e.ts
-      console.log({ mentioned: e })
-    } else if (e.user == userId && prevTs) {
-      const rt = +e.ts - prevTs
-      prevTs = null
-      console.log({ responced: e })
-      /*
-      if ((seconds && rt < seconds) || !seconds) {
-        responses.push({ user: userId, rt, text: e.text, ts: e.ts })
-        step = 0
-      }
-      */
-      responses.push({ user: userId, rt, text: e.text, ts: e.ts })
-    }
-  })
-  console.log({ responses })
+  db.messages
+    //.filter(m => m.reply_count && m.reply_users.includes(userId) || true)
+    .forEach(async e => {
+      const replies = await client.conversations.replies({
+        channel: channelId,
+        latest: end.unix(),
+        oldest: start.unix(),
+        inclusive: true,
+        limit: 999,
+        ts: e.ts
+      })
+      replies.messages.sort((a, b) => +a.ts - b.ts)
+      console.log({ replies: replies.messages })
+      messages = [...messages, ...replies.messages.filter(r => r.user == userId)]
+    })*/
+  db.messages.sort((a, b) => +a.ts - b.ts)
+  //console.log({ messages })
+  
+  await Promise.all(db.messages.map(async e => {
+    
+    const replies = await client.conversations.replies({
+      channel: channelId,
+      latest: end.unix(),
+      oldest: start.unix(),
+      inclusive: true,
+      limit: 999,
+      ts: e.ts
+    })
+    
+    replies.messages.sort((a, b) => +a.ts - b.ts)
+    //console.log({ replies: replies.messages })
+    
+    replies.messages.forEach(r => {
+      if (r.text.includes(`@${userId}`)) {
+        prevTs = r.ts
+        //console.log({ mentioned: r })
+      } else if (r.user == userId && prevTs) {
+        const rt = +r.ts - prevTs
+        prevTs = null
+        //console.log({ responced: r })
+        /*
+        if ((seconds && rt < seconds) || !seconds) {
+          responses.push({ user: userId, rt, text: e.text, ts: e.ts })
+          //step = 0
+        }
+        */
+        responses.push({ user: userId, rt, text: r.text, ts: r.ts })
+        console.log({ responses })
+      } 
+    })
+    
+  }))
+  
   return responses
 }
 
@@ -129,7 +162,13 @@ const userToId = async ({ userName, client }) => {
     [item.name, item.profile.display_name].includes(userName)) || {}).id
 }
 
-app.message('', async ({ message, say, client, ...r }) => {
+const idToUser = async ({ userId, client }) => {
+  const result = await client.users.list();
+  const user = result.members.find(item => item.id == userId) || {}
+  return (user.profile || {}).display_name || user.name
+}
+
+app.message('', async ({ message, say, client, event, ...r }) => {
   //console.log({ r })
   //console.log({ message, /* say */ })
   const thread_ts = message.thread_ts || message.ts;
@@ -146,17 +185,22 @@ app.message('', async ({ message, say, client, ...r }) => {
   console.log({ db })*/
   
   if (message.text.includes('show-user-info')) {
+    console.log({ message, client, r})
     const [text, userName, channel, startDate, endDate] = message.text.split(' ')
-    const userId = await userToId({ userName, client })
+    let userId = await userToId({ userName, client }) 
     if (!userId) {
-      say('User not found')
-      return
+      await say({ 
+        text: 'User not found. Using current user ' + 
+          await idToUser({ userId: message.user, client }),
+          thread_ts 
+      })
+      userId = message.user
     } 
     await say({ text: `Analyzing...`, thread_ts })
     const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
     const end = endDate ? moment(endDate) : moment()
     const responses = await getResponses({ 
-      userId, channel, start, end, client, say 
+      userId, channel: channel || event.channel, start, end, client, say 
     })
     const { min, max, avg } = getStatistics({ responses })
     await say({
