@@ -36,10 +36,6 @@ const app = new App({
 });
 
 let db = []
-//let responses = []
-/*const saveToDatabase = params => {
-  db.push(params)
-}*/
 
 const getResponses = async ({ 
   userId, seconds, start, end, channel, client, say }) => {
@@ -66,23 +62,6 @@ const getResponses = async ({
   })
   //console.log({ messages: db.messages })
   
-  /*let messages = [...db.messages]
-  db.messages.sort((a, b) => +a.ts - b.ts)
-  db.messages
-    //.filter(m => m.reply_count && m.reply_users.includes(userId) || true)
-    .forEach(async e => {
-      const replies = await client.conversations.replies({
-        channel: channelId,
-        latest: end.unix(),
-        oldest: start.unix(),
-        inclusive: true,
-        limit: 999,
-        ts: e.ts
-      })
-      replies.messages.sort((a, b) => +a.ts - b.ts)
-      console.log({ replies: replies.messages })
-      messages = [...messages, ...replies.messages.filter(r => r.user == userId)]
-    })*/
   db.messages.sort((a, b) => +a.ts - b.ts)
   //console.log({ messages })
   
@@ -108,12 +87,7 @@ const getResponses = async ({
         const rt = +r.ts - prevTs
         prevTs = null
         //console.log({ responced: r })
-        /*
-        if ((seconds && rt < seconds) || !seconds) {
-          responses.push({ user: userId, rt, text: e.text, ts: e.ts })
-          //step = 0
-        }
-        */
+       
         responses.push({ user: userId, rt, text: r.text, ts: r.ts })
         console.log({ responses })
       } 
@@ -179,14 +153,8 @@ app.message('', async ({ message, say, client, event, ...r }) => {
     thread_ts
   });*/
   
-  /*const { user, ts, channel, client_msg_id, text } = message
-  saveToDatabase({
-    client_msg_id, user, ts, thread_ts, channel, text
-  })
-  console.log({ db })*/
-  
   if (message.text.includes('show-user-info')) {
-    console.log({ message, client, r})
+    //console.log({ message, client, r})
     const [text, userName, channel, startDate, endDate] = message.text.split(' ')
     let userId = await userToId({ userName, client }) 
     if (!userId) {
@@ -223,40 +191,23 @@ app.message('', async ({ message, say, client, event, ...r }) => {
   if (message.text.includes('show-users-log')) {
     const [text, channel, seconds, startDate, endDate] =
       message.text.split(' ')
-    console.log({ text, seconds, startDate, endDate })
+    console.log({ text, channel, seconds, startDate, endDate })
     await say({ text: `Analyzing...`, thread_ts })
     const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
     const end = endDate ? moment(endDate) : moment()
     
     const usersList = await client.users.list()
     const users = usersList.members
-    //console.log({ users })
     
     await Promise.all(users.map(async e => {
       
         const responses = await getResponses({ 
           userId: e.id, channel, start, end, client, say 
         })
-        /*const responses = getResponses({ 
-          userId: e.id, seconds, startDate, endDate 
-        })*/
+       
         if (!responses || !responses.length) {
           return
         }
-        
-        /*await say({
-              text: `User: ${e.name || 'name not found'}: `,
-              thread_ts
-            })*/
-        /*const { min, max, avg } = getStatistics({ responses })
-        await say({
-          text: `User: ${e.name || 'no data'}
-            Min response: ${min || 'no data'}
-            Max response: ${max || 'no data'}
-            Avg response: ${avg || 'no data'}
-        `,
-          thread_ts
-        })*/
         
         await Promise.all(responses.filter(r => r.rt > seconds)
           .map(async responce => {
