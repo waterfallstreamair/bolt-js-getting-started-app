@@ -37,8 +37,13 @@ const app = new App({
 
 let db = []
 
+const channelToId = async ({ channel, client }) => {
+  const result = await client.conversations.list()
+  return (result.channels.find(e => e.name == channel) || {}).id
+}
+
 const getResponses = async ({ 
-  userId, seconds, start, end, channel, client, say }) => {
+  userId, seconds, start, end, channel, client, say, event }) => {
     console.log({ start, end })
   let responses = []
   let prevTs = 0
@@ -82,18 +87,19 @@ const getResponses = async ({
     replies.messages.forEach(r => {
       if (r.text.includes(`@${userId}`)) {
         prevTs = r.ts
-        //console.log({ mentioned: r })
+        console.log({ mentioned: r })
       } else if (r.user == userId && prevTs) {
         const rt = +r.ts - prevTs
         prevTs = null
-        //console.log({ responced: r })
+        console.log({ responced: r })
        
         responses.push({ user: userId, rt, text: r.text, ts: r.ts })
-        console.log({ responses })
+        //console.log({ responses })
       } 
     })
     
   }))
+  responses.sort((a, b) => a.rt - b.rt)
   
   return responses
 }
@@ -191,13 +197,14 @@ app.message('', async ({ message, say, client, event, ...r }) => {
   if (message.text.includes('show-users-log')) {
     const [text, channel, seconds, startDate, endDate] =
       message.text.split(' ')
-    console.log({ text, channel, seconds, startDate, endDate })
+    //console.log({ text, channel, seconds, startDate, endDate })
     await say({ text: `Analyzing...`, thread_ts })
     const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
     const end = endDate ? moment(endDate) : moment()
     
     const usersList = await client.users.list()
     const users = usersList.members
+    const channelId = await channelToId({ channel, client })
     
     await Promise.all(users.map(async e => {
       
@@ -211,14 +218,19 @@ app.message('', async ({ message, say, client, event, ...r }) => {
         
         await Promise.all(responses.filter(r => r.rt > seconds)
           .map(async responce => {
+            const link = await client.chat.getPermalink({ 
+              channel: channelId, message_ts: responce.ts
+            })
+            //console.log({ link })
             await say({
               text: `
                 User: ${e.name || 'name not found'}: 
                 Date: ${moment(+responce.ts).format('DD-MM-yyyy hh:mm:ss') || 'time stamp not found'}
                 Response: ${humanizeDuration(moment.duration(responce.rt, 'seconds')) || 'responce time not found'}
                 Text: ${responce.text || 'text not found'}
-                Link: ${'...'}
-                ===================================
+                Link: ${`<${link.permalink}|...>`}
+                =================
+                
             `,
               thread_ts
             })
