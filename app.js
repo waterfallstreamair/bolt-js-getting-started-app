@@ -36,6 +36,25 @@ const app = new App({
 });
 
 let db = []
+let channels = []
+let users = []
+let cache = {}
+
+const getChannels = async ({ client }) => {
+  if (!channels.length) {
+    const result = await client.conversations.list()
+    channels = result.channels
+  }
+  return channels
+}
+
+const getUsers = async ({ client }) => {
+  if (!users.length) {
+    const result = await client.users.list()
+    users = result.members
+  }
+  return users
+}
 
 const channelToId = async ({ channel, client }) => {
   const result = await client.conversations.list()
@@ -48,8 +67,8 @@ const getResponses = async ({
   let responses = []
   let prevTs = 0
  
-  const result = await client.conversations.list()
-  //let channelId = (result.channels.find(e => e.name == channel) || {}).id
+  /*const result = await client.conversations.list()
+  let channelId = (result.channels.find(e => e.name == channel) || {}).id*/
   
   /*if (!channelId) {
     say('Channel not found. Using current channel')
@@ -57,6 +76,15 @@ const getResponses = async ({
     //return []
   }*/
   
+  const cacheId = `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
+  const cached = cache[cacheId]
+  Object.keys(cache).map(id => {
+    console.log({ key: id, value: cache[id] })
+  })
+  if (cached && cached.length) {
+    console.log({ cached })
+    return cached 
+  }
   db = await client.conversations.history({
     channel: channelId,
     latest: end.unix(),
@@ -66,23 +94,25 @@ const getResponses = async ({
     include_all_metadata: true
   })
   //console.log({ messages: db.messages })
-  
   db.messages.sort((a, b) => +a.ts - b.ts)
   //console.log({ messages })
   
   await Promise.all(db.messages.map(async e => {
-    
-    const replies = await client.conversations.replies({
-      channel: channelId,
-      latest: end.unix(),
-      oldest: start.unix(),
-      inclusive: true,
-      limit: 999,
-      ts: e.ts
-    })
-    
-    replies.messages.sort((a, b) => +a.ts - b.ts)
-    //console.log({ replies: replies.messages })
+    let replies = {}
+    if (e.reply_count) {
+      replies = await client.conversations.replies({
+        channel: channelId,
+        latest: end.unix(),
+        oldest: start.unix(),
+        inclusive: true,
+        limit: 999,
+        ts: e.ts
+      })
+      replies.messages.sort((a, b) => +a.ts - b.ts)
+      //console.log({ replies: replies.messages })
+    } else {
+      replies = { messages: [e] }
+    }
     
     replies.messages.forEach(r => {
       if (r.text.includes(`@${userId}`)) {
@@ -100,7 +130,11 @@ const getResponses = async ({
     
   }))
   responses.sort((a, b) => a.rt - b.rt)
-  console.log({ responses })
+  //console.log({ responses })
+  //if (responses && responses.length) {
+    cache[cacheId] = responses
+  //}
+  
   return responses
 }
 
@@ -135,17 +169,21 @@ const getStatistics = ({ responses }) => {
 }
 
 const userToId = async ({ userName, client }) => {
-  const result = await client.users.list();
+  //const result = await client.users.list();
   /*console.log({ result })
   console.log({ members: result.members })
   //console.log(result.members.map(e => e.profile))*/
-  return (result.members.find(item => 
-    [item.name, item.profile.display_name].includes(userName)) || {}).id
+  /*return (result.members.find(item => 
+    [item.name, item.profile.display_name].includes(userName)) || {}).id*/
+    const found = (await getUsers({ client })).find(item => 
+      [item.name, item.profile.display_name].includes(userName))
+  return (found || {}).id
 }
 
 const idToUser = async ({ userId, client }) => {
-  const result = await client.users.list();
-  const user = result.members.find(item => item.id == userId) || {}
+  /*const result = await client.users.list();
+  const user = result.members.find(item => item.id == userId) || {}*/
+  const user = (await getUsers({ client })).find(item => item.id == userId) || {}
   return (user.profile || {}).display_name || user.name
 }
 
@@ -160,58 +198,12 @@ app.message('', async ({ message, say, client, event, ...r }) => {
   });*/
   
   if (message.text.includes('show-user-info')) {
-    //console.log({ message, client, r})
 
   }
 
   if (message.text.includes('show-users-log')) {
-    const [text, channel, seconds, startDate, endDate] =
-      message.text.split(' ')
-    //console.log({ text, channel, seconds, startDate, endDate })
-    await say({ text: `Analyzing...`, thread_ts })
-    const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
-    const end = endDate ? moment(endDate) : moment()
-    
-    const usersList = await client.users.list()
-    const users = usersList.members
-    const channelId = await channelToId({ channel, client })
-    
-    await Promise.all(users.map(async e => {
-      
-        const responses = await getResponses({ 
-          userId: e.id, channel, start, end, client, say 
-        })
-       
-        if (!responses || !responses.length) {
-          return
-        }
-        
-        await Promise.all(responses.filter(r => r.rt > seconds)
-          .map(async responce => {
-            const link = await client.chat.getPermalink({ 
-              channel: channelId, message_ts: responce.ts
-            })
-            //console.log({ link })
-            await say({
-              text: `
-                User: ${e.name || 'name not found'}: 
-                Date: ${moment.unix(+responce.ts).format('DD-MM-yyyy hh:mm:ss') || 'time stamp not found'}
-                Response: ${humanizeDuration(moment.duration(responce.rt, 'seconds')) || 'responce time not found'}
-                Text: ${responce.text || 'text not found'}
-                Link: ${`<${link.permalink}|...>`}
-                =================
-                
-            `,
-              thread_ts
-            })
-          })
-        )
-      })
-    )
-    
-    await say({ text: `Done.`, thread_ts })
+ 
   }
-  
 });
 
 app.command('/show-user-info', 
@@ -291,7 +283,7 @@ app.command('/show-users-log',
     if (!channelId) {
       await say({ 
         text: 'Channel not found. Using current channel ' + 
-          command.channel,
+          command.channel_name,
           thread_ts 
       })
       channelId = command.channel_id
@@ -301,11 +293,12 @@ app.command('/show-users-log',
     const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
     const end = endDate ? moment(endDate) : moment()
     
-    const usersList = await client.users.list()
-    const users = usersList.members
+    /*const usersList = await client.users.list()
+    const users = usersList.members*/
     //const channelId = await channelToId({ channel, client })
+    const allUsers = await getUsers({ client })
     
-    await Promise.all(users.map(async e => {
+    await Promise.all(allUsers.map(async e => {
       
         const responses = await getResponses({ 
           userId: e.id, channelId, start, end, client, say 
