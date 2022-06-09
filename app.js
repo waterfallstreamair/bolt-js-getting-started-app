@@ -2,8 +2,34 @@ const { App } = require('@slack/bolt');
 const moment = require('moment')
 const { PrismaClient } = require('@prisma/client')
 
-const prisma = new PrismaClient()
-
+const prisma = new PrismaClient({
+  /*log: [
+    {
+      emit: 'stdout',
+      level: 'query',
+    },
+    {
+      emit: 'stdout',
+      level: 'error',
+    },
+    {
+      emit: 'stdout',
+      level: 'info',
+    },
+    {
+      emit: 'stdout',
+      level: 'warn',
+    },
+  ],*/
+  log: ['query', 'info', 'warn', 'error'],
+})
+/*
+prisma.$on('query', (e) => {
+  console.log('Query: ' + e.query)
+  console.log('Params: ' + e.params)
+  console.log('Duration: ' + e.duration + 'ms')
+})
+*/
 const config = require("dotenv").config().parsed;
 // Overwrite env variables anyways
 for (const k in config) {
@@ -66,30 +92,38 @@ const getResponses = async ({
     console.log({ start, end })
   let responses = []
   let prevTs = 0
- 
-  /*const result = await client.conversations.list()
-  let channelId = (result.channels.find(e => e.name == channel) || {}).id*/
   
-  /*if (!channelId) {
-    say('Channel not found. Using current channel')
-    channelId = event.channel
-    //return []
-  }*/
+  /*const allResponses = await prisma.response.findMany()
+  console.log({ allResponses })*/
   
   const cacheId = `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
+  console.log({ cacheId })
+  console.log({ cache })
   const cached = cache[cacheId]
   Object.keys(cache).map(id => {
     console.log({ key: id, value: cache[id] })
   })
+  let latest = end.unix()
+  let oldest = start.unix()
+  //console.log({ latest, oldest })
   if (cached && cached.length) {
-    console.log({ cached })
-    return cached 
+    //console.log({ cached })
+    responses = cached 
+    //console.log({ diff: moment().diff(end, 'days') })
+    if (moment().diff(end, 'days') == 0) { 
+      const maxTs = Math.max(...cached.map(e => +e.ts))
+      oldest = maxTs || oldest
+      /*console.log({ oldest })
+      console.log({ maxTs })*/
+    } else {
+      return responses
+    }
   }
   db = await client.conversations.history({
     channel: channelId,
-    latest: end.unix(),
-    oldest: start.unix(),
-    inclusive: true,
+    latest,
+    oldest,
+    inclusive: false,
     limit: 999,
     include_all_metadata: true
   })
@@ -114,7 +148,7 @@ const getResponses = async ({
       replies = { messages: [e] }
     }
     
-    replies.messages.forEach(r => {
+    await Promise.all(replies.messages.map(async r => {
       if (r.text.includes(`@${userId}`)) {
         prevTs = r.ts
         //console.log({ mentioned: r })
@@ -125,8 +159,13 @@ const getResponses = async ({
        
         responses.push({ user: userId, rt, text: r.text, ts: r.ts })
         //console.log({ responses })
+        /*const createOne = await prisma.response.create({
+          data: { user: userId, rt: `${rt}`, text: r.text, ts: r.ts },
+          //skipDuplicates: true, 
+        })
+        console.log({ createOne })*/
       } 
-    })
+    }))
     
   }))
   responses.sort((a, b) => a.rt - b.rt)
@@ -134,6 +173,20 @@ const getResponses = async ({
   //if (responses && responses.length) {
     cache[cacheId] = responses
   //}
+  /*const createMany = await prisma.user.createMany({
+    data: [
+      { name: '1', email: 'hello@hello.localhost' },
+      { name: '2', email: 'hello@hello.localhost' }, // Duplicate unique key!
+      { name: '3', email: 'hello2@hello.localhost' },
+      { name: '4', email: 'hello3@hello.localhost' },
+    ],
+    skipDuplicates: true, // Skip '2'
+  })*/
+  /*const createMany = await prisma.response.createMany({
+    data: responses,
+    //skipDuplicates: true, 
+  })
+  console.log({ createMany })*/
   
   return responses
 }
