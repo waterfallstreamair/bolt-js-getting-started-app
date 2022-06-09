@@ -105,19 +105,13 @@ const getResponses = async ({
   })
   let latest = end.unix()
   let oldest = start.unix()
-  //console.log({ latest, oldest })
   if (cached && cached.length) {
-    //console.log({ cached })
-    responses = cached 
-    //console.log({ diff: moment().diff(end, 'days') })
-    if (moment().diff(end, 'days') == 0) { 
-      const maxTs = Math.max(...cached.map(e => +e.ts))
-      oldest = maxTs || oldest
-      /*console.log({ oldest })
-      console.log({ maxTs })*/
-    } else {
-      return responses
+    if (moment().diff(end, 'days') !== 0) { 
+      return cached
     }
+    const maxTs = Math.max(...cached.map(e => +e.ts))
+    oldest = maxTs || oldest
+    responses = cached
   }
   db = await client.conversations.history({
     channel: channelId,
@@ -127,9 +121,7 @@ const getResponses = async ({
     limit: 999,
     include_all_metadata: true
   })
-  //console.log({ messages: db.messages })
   db.messages.sort((a, b) => +a.ts - b.ts)
-  //console.log({ messages })
   
   await Promise.all(db.messages.map(async e => {
     let replies = {}
@@ -143,7 +135,6 @@ const getResponses = async ({
         ts: e.ts
       })
       replies.messages.sort((a, b) => +a.ts - b.ts)
-      //console.log({ replies: replies.messages })
     } else {
       replies = { messages: [e] }
     }
@@ -169,7 +160,6 @@ const getResponses = async ({
     
   }))
   responses.sort((a, b) => a.rt - b.rt)
-  //console.log({ responses })
   //if (responses && responses.length) {
     cache[cacheId] = responses
   //}
