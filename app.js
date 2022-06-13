@@ -82,7 +82,7 @@ const getResponses = async ({
       responses.push({ user: userId, rt, text: r.text, ts: r.ts })
     } 
   }))
-  responses.sort((a, b) => a.rt - b.rt)
+  //responses.sort((a, b) => a.rt - b.rt)
   cache[cacheId] = responses
   
   return responses
@@ -244,6 +244,12 @@ app.command('/show-users-log',
   await say({ text: `Analyzing...`, thread_ts })
   const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
   const end = endDate ? moment(endDate) : moment()
+  await say({ text: `
+    Statistics for period 
+        from ${start.format('DD-MM-yyyy')} 
+        to ${end.format('DD-MM-yyyy')}:
+  `, thread_ts })
+  
   const allUsers = users || (await getUsers({ client }))
   const messages = await getMessages({ client, start, end, channel: channelId })
   
