@@ -56,7 +56,7 @@ const getResponses = async ({
   userId, start, end, channelId, client, say, /*event,*/ messages }) => {
     
   let responses = []
-  let prevTs = 0
+  let prevTs = null
  
   const cacheId = `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
   console.log({ cacheId })
@@ -143,10 +143,11 @@ const getMessages = async ({ client, start, end, channel }) => {
         limit: 999,
         ts: e.ts
       })
-      replies.messages.sort((a, b) => +a.ts - b.ts)
+      //replies.messages.sort((a, b) => +a.ts - b.ts)
     }
     replies.messages.map(r => messages.push(r))
   }))
+  messages.sort((a, b) => +a.ts - b.ts)
   return messages
 }
 
@@ -252,12 +253,13 @@ app.command('/show-users-log',
   
   const allUsers = users || (await getUsers({ client }))
   const messages = await getMessages({ client, start, end, channel: channelId })
-  
+  //console.log({ allUsers })
   await Promise.all(allUsers.map(async e => {
     
       const responses = await getResponses({ 
-        userId: e.id, channelId, start, end, client, say, messages 
+        userId: e.id, channelId, start, end, /*client, say,*/ messages 
       })
+      console.log({ responses })
      
       if (!responses || !responses.length) {
         return
