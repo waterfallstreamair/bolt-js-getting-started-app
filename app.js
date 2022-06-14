@@ -105,9 +105,6 @@ const getStatistics = ({ responses }) => {
 }
 
 const getMessages = async ({ client, start, end, channel }) => {
-  console.log('getMessages: ')
-  console.log({ start, end })
-  console.log({ channel })
   let messages = []
   const h = await client.conversations.history({
     channel,
@@ -138,15 +135,9 @@ const getMessages = async ({ client, start, end, channel }) => {
 }
 
 app.message('', async ({ message, say, client, event, ...r }) => {
-  //console.log({ r })
-  //console.log({ message, /* say */ })
+  
   const thread_ts = message.thread_ts || message.ts;
-  
-  /*await say({
-    text: `Hello <@${message.user}>!`,
-    thread_ts
-  });*/
-  
+ 
   if (message.text.includes('show-user-info')) {
 
   }
@@ -160,8 +151,7 @@ app.command('/show-user-info',
   async ({ command, ack, say, client, ...r }) => {
     
   await ack();
-  //console.log({ command, ack, respond, r })
-  console.log({ command })
+  
   const message = await client.chat.postMessage({ 
     text: 'Show user info: ',
     channel: command.channel_id
@@ -170,28 +160,23 @@ app.command('/show-user-info',
   
   const [user, channel, startDate, endDate] = command.text.split(' ')
   
-  let userId = (user.split('|')[0]).replace('<@', '')
-  let userName = (user.split('|')[1]).replace('>', '')
-  console.log({ user, userId })
-  console.log({ userName})
-  if (!userId) {
+  let userId = user ? (user.split('|')[0]).replace('<@', '') : command.user_id
+  let userName = user ? (user.split('|')[1]).replace('>', '') : command.user_name
+  if (!user) {
     await say({ 
       text: 'User not found. Using current user ' + 
-        command.user,
+        command.user_name,
         thread_ts 
     })
-    userId = command.user_id
   } 
   
-  let channelId = (channel.split('|')[0]).replace('<#', '')
-  console.log({ channel, channelId })
-  if (!channelId) {
+  let channelId = channel ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  if (!channel) {
     await say({ 
       text: 'Channel not found. Using current channel ' + 
-        command.channel,
+        command.channel_name,
         thread_ts 
     })
-    channelId = command.channel_id
   } 
   
   await say({ text: `Analyzing...`, thread_ts })
@@ -205,6 +190,7 @@ app.command('/show-user-info',
   await say({
     text: `
       User id ${userId}
+      User name ${userName}
       Statistics for period 
         from ${start.format('DD-MM-yyyy')} 
         to ${end.format('DD-MM-yyyy')}:
