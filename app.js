@@ -5,13 +5,7 @@ const moment = require('moment')
 /*const prisma = new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
 })*/
-/*
-prisma.$on('query', (e) => {
-  console.log('Query: ' + e.query)
-  console.log('Params: ' + e.params)
-  console.log('Duration: ' + e.duration + 'ms')
-})
-*/
+
 const config = require("dotenv").config().parsed;
 // Overwrite env variables anyways
 for (const k in config) {
@@ -43,7 +37,6 @@ const app = new App({
   ],
 });
 
-//let db = []
 let users = null
 let cache = {}
 
@@ -58,15 +51,9 @@ const getResponses = async ({
   let responses = []
   let prevTs = null
  
-  const cacheId = `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
-  console.log({ cacheId })
-  console.log({ cache })
+  const cacheId = 
+    `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
   const cached = cache[cacheId]
-  Object.keys(cache).map(id => {
-    console.log({ key: id, value: cache[id] })
-  })
-  /*let latest = end.unix()
-  let oldest = start.unix()*/
   if (cached && (cached.length > 0 || cached.length === 0)) {
     if (moment().diff(end, 'days') > 0) { 
       return cached
@@ -82,7 +69,6 @@ const getResponses = async ({
       responses.push({ user: userId, rt, text: r.text, ts: r.ts })
     } 
   }))
-  //responses.sort((a, b) => a.rt - b.rt)
   cache[cacheId] = responses
   
   return responses
