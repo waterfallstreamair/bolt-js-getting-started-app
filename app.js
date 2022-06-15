@@ -1,7 +1,7 @@
 const { App } = require('@slack/bolt')
 const moment = require('moment')
 
-const { validateUserInfo } = require('./validator')
+const { validateUserInfo, validateUsersLog } = require('./validator')
 
 //const { PrismaClient } = require('@prisma/client')
 
@@ -49,7 +49,7 @@ const getUsers = async ({ client }) => {
 }
 
 const getResponses = async ({ 
-  userId, start, end, channelId, client, say, /*event,*/ messages }) => {
+  userId, start, end, channelId, /*client, say,*/ /*event,*/ messages }) => {
     
   let responses = []
   let prevTs = null
@@ -171,15 +171,14 @@ app.command('/show-user-info',
       ${validateUserInfo.errors.map(e => e.message + '\n')}
       Command format: /show-user-info [user] [channel]
     `, thread_ts })
-    // return 
+    //return 
   }
-  
   
   let userId = user ? (user.split('|')[0]).replace('<@', '') : command.user_id
   let userName = user ? (user.split('|')[1]).replace('>', '') : command.user_name
   if (!user) {
     await say({ 
-      text: 'User not found. Using current user ' + 
+      text: 'Using current user ' + 
         command.user_name,
         thread_ts 
     })
@@ -188,7 +187,7 @@ app.command('/show-user-info',
   let channelId = channel ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
   if (!channel) {
     await say({ 
-      text: 'Channel not found. Using current channel ' + 
+      text: 'Using current channel ' + 
         command.channel_name,
         thread_ts 
     })
@@ -228,8 +227,27 @@ app.command('/show-users-log',
   })
   const thread_ts = message.ts
   const [channel, seconds, startDate, endDate] = command.text.split(' ')
-  let channelId = (channel.split('|')[0]).replace('<#', '')
+  
+  if (!validateUsersLog({ channel, seconds: +seconds })) {
+    validateUsersLog.errors.map(e => {
+      console.log({ message: e.message, params: e.params })
+    })
+    await say({ text: `This command:
+      ${validateUsersLog.errors.map(e => e.message + '\n')}
+      Command format: /show-users-log [channel] [seconds]
+    `, thread_ts })
+    //return 
+  }
+  
+  let channelId = channel ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  
   await say({ text: `Analyzing...`, thread_ts })
+  if (!channel) {
+    await say({ text: `Using current channel: ${command.channel_name}`, thread_ts })
+  }
+  if (!seconds) {
+    await say({ text: `Using parameter seconds: 0`, thread_ts })
+  }
   const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
   const end = endDate ? moment(endDate) : moment()
   await say({ text: `
@@ -252,7 +270,7 @@ app.command('/show-users-log',
         return
       }
       
-      await Promise.all(responses.filter(r => r.rt > seconds)
+      await Promise.all(responses.filter(r => r.rt > (seconds || 0))
         .map(async responce => {
           const link = await client.chat.getPermalink({ 
             channel: channelId, message_ts: responce.ts
