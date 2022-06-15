@@ -1,5 +1,8 @@
-const { App } = require('@slack/bolt');
+const { App } = require('@slack/bolt')
 const moment = require('moment')
+
+const { validateUserInfo } = require('./validator')
+
 //const { PrismaClient } = require('@prisma/client')
 
 /*const prisma = new PrismaClient({
@@ -159,6 +162,18 @@ app.command('/show-user-info',
   const thread_ts = message.ts
   
   const [user, channel, startDate, endDate] = command.text.split(' ')
+  
+  if (!validateUserInfo({ user, channel })) {
+    validateUserInfo.errors.map(e => {
+      console.log({ message: e.message, params: e.params })
+    })
+    await say({ text: `This command:
+      ${validateUserInfo.errors.map(e => e.message + '\n')}
+      Command format: /show-user-info [user] [channel]
+    `, thread_ts })
+    // return 
+  }
+  
   
   let userId = user ? (user.split('|')[0]).replace('<@', '') : command.user_id
   let userName = user ? (user.split('|')[1]).replace('>', '') : command.user_name
