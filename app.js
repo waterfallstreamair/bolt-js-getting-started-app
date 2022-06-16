@@ -155,19 +155,20 @@ app.command('/show-user-info',
   
   const [user, channel, startDate, endDate] = command.text.split(' ')
   
-  if (!validateUserInfo({ user, channel })) {
-    validateUserInfo.errors.map(e => {
+  const valid = validateUserInfo({ user, channel })
+  if (!valid) {
+    /*validateUserInfo.errors.map(e => {
       console.log({ message: e.message, params: e.params })
-    })
+    })*/
     await say({ text: `Please use this command format: 
       /show-user-info [user] [channel]
     `, thread_ts })
     //return 
   }
   
-  let userId = user ? (user.split('|')[0]).replace('<@', '') : command.user_id
-  let userName = user ? (user.split('|')[1]).replace('>', '') : command.user_name
-  if (!user) {
+  let userId = valid ? (user.split('|')[0]).replace('<@', '') : command.user_id
+  let userName = valid ? (user.split('|')[1]).replace('>', '') : command.user_name
+  if (!valid) {
     await say({ 
       text: 'Using current user ' + 
         command.user_name,
@@ -175,8 +176,8 @@ app.command('/show-user-info',
     })
   } 
   
-  let channelId = channel ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
-  if (!channel) {
+  let channelId = valid ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  if (!valid) {
     await say({ 
       text: 'Using current channel ' + 
         command.channel_name,
@@ -189,7 +190,7 @@ app.command('/show-user-info',
   const end = endDate ? moment(endDate) : moment()
   const messages = await getMessages({ client, start, end, channel: channelId })
   const responses = await getResponses({ 
-    userId, channelId, start, end, client, say, messages
+    userId, channelId, start, end, /*client, say,*/ messages
   })
   const { min, max, avg } = getStatistics({ responses })
   await say({
@@ -218,23 +219,24 @@ app.command('/show-users-log',
   const thread_ts = message.ts
   const [channel, seconds, startDate, endDate] = command.text.split(' ')
   
-  if (!validateUsersLog({ channel, seconds: +seconds })) {
-    validateUsersLog.errors.map(e => {
+  const valid = validateUsersLog({ channel, seconds: +seconds })
+  if (!valid) {
+    /*validateUsersLog.errors.map(e => {
       console.log({ message: e.message, params: e.params })
-    })
+    })*/
     await say({ text: `Please use this command format: 
       /show-users-log [channel] [seconds]
     `, thread_ts })
     //return 
   }
   
-  let channelId = channel ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  let channelId = valid ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
   
   await say({ text: `Analyzing...`, thread_ts })
-  if (!channel) {
+  if (!valid) {
     await say({ text: `Using current channel: ${command.channel_name}`, thread_ts })
   }
-  if (!seconds) {
+  if (!valid) {
     await say({ text: `Using parameter seconds: 0`, thread_ts })
   }
   const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
@@ -245,15 +247,15 @@ app.command('/show-users-log',
         to ${end.format('DD-MM-yyyy')}:
   `, thread_ts })
   
-  const allUsers = users // || (await getUsers({ client }))
+  //const allUsers = users // || (await getUsers({ client }))
   const messages = await getMessages({ client, start, end, channel: channelId })
-  //console.log({ allUsers })
-  await Promise.all(allUsers.map(async e => {
+  
+  await Promise.all(users.map(async e => {
     
       const responses = await getResponses({ 
         userId: e.id, channelId, start, end, /*client, say,*/ messages 
       })
-      console.log({ responses })
+      //console.log({ responses })
      
       if (!responses || !responses.length) {
         return
