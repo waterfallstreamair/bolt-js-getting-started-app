@@ -3,12 +3,6 @@ const moment = require('moment')
 
 const { validateUserInfo, validateUsersLog } = require('./validator')
 
-//const { PrismaClient } = require('@prisma/client')
-
-/*const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-})*/
-
 const config = require("dotenv").config().parsed;
 // Overwrite env variables anyways
 for (const k in config) {
@@ -152,9 +146,7 @@ app.message('', async ({ message, say, client, event, ...r }) => {
 
 app.command('/show-user-info', 
   async ({ command, ack, say, client, ...r }) => {
-    
   await ack();
-  
   const message = await client.chat.postMessage({ 
     text: 'Show user info: ',
     channel: command.channel_id
@@ -167,9 +159,8 @@ app.command('/show-user-info',
     validateUserInfo.errors.map(e => {
       console.log({ message: e.message, params: e.params })
     })
-    await say({ text: `This command:
-      ${validateUserInfo.errors.map(e => e.message + '\n')}
-      Command format: /show-user-info [user] [channel]
+    await say({ text: `Please use this command format: 
+      /show-user-info [user] [channel]
     `, thread_ts })
     //return 
   }
@@ -217,7 +208,6 @@ app.command('/show-user-info',
   await say({ text: `Done.`, thread_ts })
 });
 
-
 app.command('/show-users-log', 
   async ({ command, ack, say, client, ...r }) => {
   await ack();
@@ -232,9 +222,8 @@ app.command('/show-users-log',
     validateUsersLog.errors.map(e => {
       console.log({ message: e.message, params: e.params })
     })
-    await say({ text: `This command:
-      ${validateUsersLog.errors.map(e => e.message + '\n')}
-      Command format: /show-users-log [channel] [seconds]
+    await say({ text: `Please use this command format: 
+      /show-users-log [channel] [seconds]
     `, thread_ts })
     //return 
   }
@@ -256,7 +245,7 @@ app.command('/show-users-log',
         to ${end.format('DD-MM-yyyy')}:
   `, thread_ts })
   
-  const allUsers = users || (await getUsers({ client }))
+  const allUsers = users // || (await getUsers({ client }))
   const messages = await getMessages({ client, start, end, channel: channelId })
   //console.log({ allUsers })
   await Promise.all(allUsers.map(async e => {
@@ -294,7 +283,14 @@ app.command('/show-users-log',
   await say({ text: `Done.`, thread_ts })
 });
 
+const init = async () => {
+  //console.log({ app })
+  users = await getUsers({ client: app.client })
+  console.log({ users })
+}
+
 (async () => {
+  await init()
   await app.start(process.env.PORT || 3000);
   console.log('⚡️ Bolt app is running!');
 })();
