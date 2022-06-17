@@ -249,7 +249,7 @@ app.command('/show-users-log',
   
   //const allUsers = users // || (await getUsers({ client }))
   const messages = await getMessages({ client, start, end, channel: channelId })
-  
+  let rows = []
   await Promise.all(users.map(async e => {
     
       const responses = await getResponses({ 
@@ -266,6 +266,18 @@ app.command('/show-users-log',
           const link = await client.chat.getPermalink({ 
             channel: channelId, message_ts: responce.ts
           })
+          const info = {
+            user: e.name || 'name not found',
+            date: moment.unix(+responce.ts).format('DD-MM-yyyy hh:mm:ss') 
+                || 'time stamp not found',
+            response: 
+                humanizeDuration(moment.duration(responce.rt, 'seconds')) 
+                || 'response time not found',
+            text: responce.text || 'text not found',
+            link: `<${link.permalink}|...>`,
+          }
+          console.log({ info })
+          rows.push(info)
           await say({
             text: `
               User: ${e.name || 'name not found'}: 
@@ -282,6 +294,7 @@ app.command('/show-users-log',
       )
     })
   )
+  console.log({ rows })
   await say({ text: `Done.`, thread_ts })
 });
 
