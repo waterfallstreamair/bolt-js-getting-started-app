@@ -1,5 +1,6 @@
 const { App } = require('@slack/bolt')
 const moment = require('moment')
+const cTable = require('console.table')
 
 const { validateUserInfo, validateUsersLog } = require('./validator')
 
@@ -268,16 +269,18 @@ app.command('/show-users-log',
           })
           const info = {
             user: e.name || 'name not found',
-            date: moment.unix(+responce.ts).format('DD-MM-yyyy hh:mm:ss') 
-                || 'time stamp not found',
+            /*date: moment.unix(+responce.ts).format('DD-MM-yyyy hh:mm:ss') 
+                || 'time stamp not found',*/
             response: 
                 humanizeDuration(moment.duration(responce.rt, 'seconds')) 
                 || 'response time not found',
-            text: responce.text || 'text not found',
-            link: `<${link.permalink}|...>`,
+            /*text: responce.text || 'text not found',*/
+            link: `<${link.permalink}|Link>`,
           }
-          console.log({ info })
+          //console.log({ info })
           rows.push(info)
+          //rows.push([info.user, info.response, info.link])
+          
           await say({
             text: `
               User: ${e.name || 'name not found'}: 
@@ -290,18 +293,30 @@ app.command('/show-users-log',
           `,
             thread_ts
           })
+          
         })
       )
     })
   )
-  console.log({ rows })
+  //console.log({ rows })
+  
+  const t = cTable.getTable(rows)
+  
+  
+  //await say({ text: '```' + t + '```', thread_ts })
+  //await say({ text: t, thread_ts })
+  console.log({ t })
+  const text = t.split('\n').slice(2).join('\n')
+  console.log({ text })
+  await say({ text: `Result as a table: \n${text}`, thread_ts })
   await say({ text: `Done.`, thread_ts })
 });
 
 const init = async () => {
   //console.log({ app })
   users = await getUsers({ client: app.client })
-  console.log({ users })
+  //console.log({ users })
+  console.log(cTable.getTable(users.map(u => ({ id: u.id, name: u.name }))))
 }
 
 (async () => {
