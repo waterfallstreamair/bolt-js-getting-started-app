@@ -1,7 +1,8 @@
 const { App } = require('@slack/bolt')
 const moment = require('moment')
 const cTable = require('console.table')
-const NodeCache = require( "node-cache" );
+const { isArray } = require('lodash')
+const NodeCache = require( "node-cache" )
 const cache = new NodeCache( { stdTTL: 100, checkperiod: 120 } )
 
 const { validateUserInfo, validateUsersLog } = require('./validator')
@@ -46,7 +47,7 @@ const getUsers = async ({ client }) => {
 }
 
 const getResponses = async ({ 
-  userId, start, end, channelId, /*client, say,*/ /*event,*/ messages }) => {
+  userId, start, end, channelId, messages }) => {
     
   let responses = []
   let prevTs = null
@@ -54,8 +55,9 @@ const getResponses = async ({
   const cacheId = 
     `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
   const cached = cache.get(cacheId)
-  console.log({ cached })
-  if (cached && (cached.length > 0 || cached.length === 0)) {
+  //console.log({ cached })
+  if (cached && isArray(cached)) {
+    console.log({ cached })
     //if (moment().diff(end, 'days') > 0) { 
       return cached
     //}
@@ -253,9 +255,7 @@ app.command('/show-users-log',
         to ${end.format('DD-MM-yyyy')}:
   `, thread_ts })
   
-  //const allUsers = users // || (await getUsers({ client }))
   const allUsers = await client.conversations.members({ channel: channelId })
-  //console.log({ allUsers })
   const messages = await getMessages({ client, start, end, channel: channelId })
   let rows = []
   await Promise.all(users.filter(u => allUsers.members.includes(u.id) && !u.is_bot)
@@ -310,19 +310,14 @@ app.command('/show-users-log',
   //console.log({ rows })
   
   const t = cTable.getTable(rows)
-  
-  
-  //await say({ text: '```' + t + '```', thread_ts })
-  //await say({ text: t, thread_ts })
-  console.log({ t })
+ 
   const text = t.split('\n').slice(2).join('\n')
-  console.log({ text })
+  //console.log({ text })
   await say({ text: `Result as a table: \n${text}`, thread_ts })
   await say({ text: `Done.`, thread_ts })
 });
 
 const init = async () => {
-  //console.log({ app })
   users = await getUsers({ client: app.client })
   //console.log({ users })
   console.log(cTable.getTable(users.map(u => ({ id: u.id, name: u.name }))))
