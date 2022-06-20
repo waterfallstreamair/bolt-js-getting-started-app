@@ -236,6 +236,7 @@ app.command('/show-users-log',
   }
   
   let channelId = valid ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  let channelName = valid ? (channel.split('|')[1]).replace('>', '') : command.channel_name
   
   await say({ text: `Analyzing...`, thread_ts })
   if (!valid) {
@@ -253,9 +254,12 @@ app.command('/show-users-log',
   `, thread_ts })
   
   //const allUsers = users // || (await getUsers({ client }))
+  const allUsers = await client.conversations.members({ channel: channelId })
+  //console.log({ allUsers })
   const messages = await getMessages({ client, start, end, channel: channelId })
   let rows = []
-  await Promise.all(users.map(async e => {
+  await Promise.all(users.filter(u => allUsers.members.includes(u.id) && !u.is_bot)
+    .map(async e => {
     
       const responses = await getResponses({ 
         userId: e.id, channelId, start, end, /*client, say,*/ messages 
@@ -279,6 +283,7 @@ app.command('/show-users-log',
                 humanizeDuration(moment.duration(responce.rt, 'seconds')) 
                 || 'response time not found',
             /*text: responce.text || 'text not found',*/
+            channel: channelName,
             link: `<${link.permalink}|Link>`,
           }
           //console.log({ info })
