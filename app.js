@@ -1,6 +1,8 @@
 const { App } = require('@slack/bolt')
 const moment = require('moment')
 const cTable = require('console.table')
+const NodeCache = require( "node-cache" );
+const cache = new NodeCache( { stdTTL: 100, checkperiod: 120 } )
 
 const { validateUserInfo, validateUsersLog } = require('./validator')
 
@@ -36,7 +38,7 @@ const app = new App({
 });
 
 let users = null
-let cache = {}
+//let cache = {}
 
 const getUsers = async ({ client }) => {
   const result = await client.users.list()
@@ -51,11 +53,12 @@ const getResponses = async ({
  
   const cacheId = 
     `${channelId}-${userId}-${start.format('DD-MM-yyyy')}-${end.format('DD-MM-yyyy')}`
-  const cached = cache[cacheId]
+  const cached = cache.get(cacheId)
+  console.log({ cached })
   if (cached && (cached.length > 0 || cached.length === 0)) {
-    if (moment().diff(end, 'days') > 0) { 
+    //if (moment().diff(end, 'days') > 0) { 
       return cached
-    }
+    //}
   }
   
   await Promise.all(messages.map(async r => {
@@ -67,7 +70,8 @@ const getResponses = async ({
       responses.push({ user: userId, rt, text: r.text, ts: r.ts })
     } 
   }))
-  cache[cacheId] = responses
+  cache.set(cacheId, responses)
+  //console.log({ cache })
   
   return responses
 }

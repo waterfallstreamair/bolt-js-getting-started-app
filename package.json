@@ -15,7 +15,8 @@
     "ajv": "^8.11.0",
     "console.table": "^0.10.0",
     "dotenv": "^16.0.1",
-    "moment": "^2.29.3"
+    "moment": "^2.29.3",
+    "node-cache": "^5.1.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.16",
