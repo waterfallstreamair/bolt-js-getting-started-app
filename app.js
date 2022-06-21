@@ -255,16 +255,15 @@ app.command('/show-users-log',
         to ${end.format('DD-MM-yyyy')}:
   `, thread_ts })
   
-  const allUsers = await client.conversations.members({ channel: channelId })
+  //const allUsers = await client.conversations.members({ channel: channelId })
   const messages = await getMessages({ client, start, end, channel: channelId })
   let rows = []
-  await Promise.all(users.filter(u => allUsers.members.includes(u.id) && !u.is_bot)
+  await Promise.all(users.filter(u => !u.is_bot)
     .map(async e => {
     
       const responses = await getResponses({ 
         userId: e.id, channelId, start, end, /*client, say,*/ messages 
       })
-      //console.log({ responses })
      
       if (!responses || !responses.length) {
         return
@@ -277,16 +276,12 @@ app.command('/show-users-log',
           })
           const info = {
             user: e.name || 'name not found',
-            /*date: moment.unix(+responce.ts).format('DD-MM-yyyy hh:mm:ss') 
-                || 'time stamp not found',*/
             response: 
                 humanizeDuration(moment.duration(responce.rt, 'seconds')) 
                 || 'response time not found',
-            /*text: responce.text || 'text not found',*/
             channel: channelName,
             link: `<${link.permalink}|Link>`,
           }
-          //console.log({ info })
           rows.push(info)
           //rows.push([info.user, info.response, info.link])
           

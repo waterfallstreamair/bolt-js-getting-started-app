@@ -1,11 +1,11 @@
 const Ajv = require("ajv")
-const ajv = new Ajv({ allErrors: true }) // options can be passed, e.g. {allErrors: true}
+const ajv = new Ajv({ allErrors: true }) 
 
 const schemaUserInfo = {
   type: "object",
   properties: {
-    user: { type: "string" },
-    channel: { type: "string" }
+    user: { type: "string", maxLength: 100 },
+    channel: { type: "string", maxLength: 100 }
   },
   required: ["user", "channel"],
   additionalProperties: false
@@ -16,8 +16,8 @@ const validateUserInfo = ajv.compile(schemaUserInfo)
 const schemaUsersLog = {
   type: "object",
   properties: {
-    channel: { type: "string" },
-    seconds: { type: "number" }
+    channel: { type: "string", maxLength: 100 },
+    seconds: { type: "number", minimum: 0 }
   },
   required: ["channel", "seconds"],
   additionalProperties: false
@@ -29,12 +29,3 @@ module.exports = {
     validateUserInfo,
     validateUsersLog
 }
-/*
-const data = {
-  user: "",
-  channel: ""
-}
-
-const valid = validate(data)
-if (!valid) console.log(validate.errors)
-*/
