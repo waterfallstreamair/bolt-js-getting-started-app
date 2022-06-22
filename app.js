@@ -243,10 +243,9 @@ app.command('/show-users-log',
   
   await say({ text: `Analyzing...`, thread_ts })
   if (!valid) {
-    await say({ text: `Using current channel: ${command.channel_name}`, thread_ts })
-  }
-  if (!valid) {
-    await say({ text: `Using parameter seconds: 0`, thread_ts })
+    await say({ text: `
+      Using current channel: ${command.channel_name}
+      Using parameter seconds: 0`, thread_ts })
   }
   const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
   const end = endDate ? moment(endDate) : moment()
@@ -263,10 +262,10 @@ app.command('/show-users-log',
     .map(async e => {
     
       const responses = await getResponses({ 
-        userId: e.id, channelId, start, end, /*client, say,*/ messages 
+        userId: e.id, channelId, start, end, messages 
       })
      
-      if (!responses || !responses.length) {
+      if (!responses || !isArray(responses)) {
         return
       }
       
