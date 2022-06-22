@@ -1,7 +1,7 @@
 const { App } = require('@slack/bolt')
 const moment = require('moment')
 const cTable = require('console.table')
-const { isArray } = require('lodash')
+const { isArray, min, max, mean } = require('lodash')
 const NodeCache = require( "node-cache" )
 const cache = new NodeCache( { stdTTL: 100, checkperiod: 120 } )
 
@@ -58,9 +58,9 @@ const getResponses = async ({
   //console.log({ cached })
   if (cached && isArray(cached)) {
     console.log({ cached })
-    //if (moment().diff(end, 'days') > 0) { 
+    if (moment().diff(end, 'days') > 0) { 
       return cached
-    //}
+    }
   }
   
   await Promise.all(messages.map(async r => {
@@ -88,19 +88,16 @@ const humanizeDuration = d => {
 }
 
 const getStatistics = ({ responses }) => {
-  if (responses && responses.length) {
+  if (responses && isArray(responses)) {
     const nums = responses.map(e => e.rt)
-    const min = Math.min(...nums)
+    /*const min = Math.min(...nums)
     const max = Math.max(...nums)
-    const avg = (nums.reduce((a, b) => a + b) / nums.length)
-    /*const threshold = { d: 7, h: 24, m: 60, s: 60, ss: 0 }
-    console.log({ 
-      min: humanizeDuration(moment.duration(min, 'seconds'))
-    })*/
+    const avg = (nums.reduce((a, b) => a + b) / nums.length)*/
+    
     return {
-      min: humanizeDuration(moment.duration(min, 'seconds')),
-      max: humanizeDuration(moment.duration(max, 'seconds')),
-      avg: humanizeDuration(moment.duration(avg, 'seconds')),
+      min: humanizeDuration(moment.duration(min(nums), 'seconds')),
+      max: humanizeDuration(moment.duration(max(nums), 'seconds')),
+      avg: humanizeDuration(moment.duration(mean(nums), 'seconds')),
     }
   } 
   return {
@@ -169,6 +166,8 @@ app.command('/show-user-info',
     })*/
     await say({ text: `Please use this command format: 
       /show-user-info [user] [channel]
+      
+      \`${JSON.stringify(validateUserInfo.errors)}\`
     `, thread_ts })
     //return 
   }
@@ -233,6 +232,8 @@ app.command('/show-users-log',
     })*/
     await say({ text: `Please use this command format: 
       /show-users-log [channel] [seconds]
+      
+      \`${JSON.stringify(validateUsersLog.errors)}\`
     `, thread_ts })
     //return 
   }
@@ -314,7 +315,6 @@ app.command('/show-users-log',
 
 const init = async () => {
   users = await getUsers({ client: app.client })
-  //console.log({ users })
   console.log(cTable.getTable(users.map(u => ({ id: u.id, name: u.name }))))
 }
 
