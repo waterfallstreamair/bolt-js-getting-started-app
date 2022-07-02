@@ -1,11 +1,20 @@
-const { App } = require('@slack/bolt')
+const { App, ExpressReceiver } = require('@slack/bolt')
+const bodyParser = require('body-parser')
+//const { App } = require('@slack/bolt')
 const moment = require('moment')
 const cTable = require('console.table')
 const { isArray, min, max, mean } = require('lodash')
+const cors = require('cors')
 const NodeCache = require( "node-cache" )
 const cache = new NodeCache( { stdTTL: 100, checkperiod: 120 } )
 
 const { validateUserInfo, validateUsersLog } = require('./validator')
+
+const prisma = require('./prisma-client')
+const { updateUser, getUsers: getSavedUsers } = require('./user')
+
+let users = null
+let channels = null
 
 const config = require("dotenv").config().parsed;
 // Overwrite env variables anyways
@@ -14,12 +23,52 @@ for (const k in config) {
 }
 //console.log(process.env)
 
+const receiver = new ExpressReceiver({ 
+  signingSecret: process.env.SLACK_SIGNING_SECRET,
+  processBeforeResponse: false
+})
+receiver.router.use(bodyParser.urlencoded({ extended: true }))
+receiver.router.use(bodyParser.json())
+receiver.router.use(cors())
+/*
+const app = new App({
+  // ...,
+  receiver
+})
+
+receiver.router.post('/xyz', (req, res) => {
+  req.body
+})
+*/
+
+receiver.router.get('/hello', (req, res) => {
+  res.json({ hello: 'hello'})
+})
+
+receiver.router.get('/api/v1/users', async (req, res) => {
+  const allUsers = await getSavedUsers()
+  console.log({ allUsers })
+  res.json({ users: allUsers })
+})
+
+receiver.router.put('/api/v1/user', async (req, res) => {
+  const { userName, channelName } = req.body
+  console.log({ userName, channelName })
+  const user = users.find(e => e.name == userName).id
+  const channel = channels.find(e => e.name == channelName).id
+  console.log({ user, channel })
+  const updatedUser = await getUserInfo({ user, channel, userName, channelName })
+  console.log({ updatedUser })
+  res.json({ updatedUser })
+})
+
 // Initializes the app with bot token and app token
 const app = new App({
+  /* receiver, */
   token: process.env.SLACK_BOT_TOKEN,
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN,
-  customRoutes: [
+  /*customRoutes: [
     {
       path: '/health-check',
       method: ['GET'],
@@ -34,16 +83,30 @@ const app = new App({
         res.end('Health check information displayed here!');
       },
     },
-    
-  ],
+    {
+      path: '/api/v1/users',
+      method: ['GET'],
+      handler: (req, res) => {
+        //console.log({ req, res })
+        res.writeHead(200);
+        //res.end('Health check information displayed here!');
+        //res.json(users)
+        res.end(JSON.stringify(users.map(e => e.name)))
+      },
+    },
+  ],*/
 });
 
-let users = null
 //let cache = {}
 
-const getUsers = async ({ client }) => {
-  const result = await client.users.list()
+const getUsers = async () => {
+  const result = await app.client.users.list()
   return result.members
+}
+
+const getChannels = async () => {
+  const result = await app.client.conversations.list()
+  return result.channels
 }
 
 const getResponses = async ({ 
@@ -89,15 +152,17 @@ const humanizeDuration = d => {
 
 const getStatistics = ({ responses }) => {
   if (responses && isArray(responses)) {
-    const nums = responses.map(e => e.rt)
-    /*const min = Math.min(...nums)
-    const max = Math.max(...nums)
-    const avg = (nums.reduce((a, b) => a + b) / nums.length)*/
-    
+    const nums = responses.map(e => Math.floor(e.rt))
+    const minNum = min(nums)
+    const maxNum = max(nums)
+    const avgNum = mean(nums)
     return {
-      min: humanizeDuration(moment.duration(min(nums), 'seconds')),
-      max: humanizeDuration(moment.duration(max(nums), 'seconds')),
-      avg: humanizeDuration(moment.duration(mean(nums), 'seconds')),
+      min: humanizeDuration(moment.duration(minNum, 'seconds')),
+      max: humanizeDuration(moment.duration(maxNum, 'seconds')),
+      avg: humanizeDuration(moment.duration(avgNum, 'seconds')),
+      minNum,
+      maxNum,
+      avgNum,
     }
   } 
   return {
@@ -105,7 +170,8 @@ const getStatistics = ({ responses }) => {
   }
 }
 
-const getMessages = async ({ client, start, end, channel }) => {
+const getMessages = async ({ start, end, channel }) => {
+  const { client } = app
   let messages = []
   const h = await client.conversations.history({
     channel,
@@ -148,6 +214,31 @@ app.message('', async ({ message, say, client, event, ...r }) => {
   }
 });
 
+const getUserInfo = async ({ user, channel, userName, channelName }) => {
+  console.log({ user, channel, userName, channelName })
+  const start = moment().subtract(90, 'days')
+  const end = moment()
+  
+  const messages = await getMessages({ start, end, channel })
+  const responses = await getResponses({ 
+    userId: user, channelId: channel, start, end, messages
+  })
+  const { min, max, avg, } = getStatistics({ responses })
+  const updatedUser = await updateUser({ 
+    user: userName, 
+    channel: channelName,
+    min: min || '', 
+    max: max || '', 
+    avg: avg || '', 
+    start: start.format('DD-MM-yyyy hh:mm:ss'), 
+    end: end.format('DD-MM-yyyy hh:mm:ss') })
+  console.log({ updatedUser })
+  return {
+   // min, max, avg, start, end, user: userName, channel: channelName
+   ...updatedUser
+  }
+}
+
 app.command('/show-user-info', 
   async ({ command, ack, say, client, ...r }) => {
   await ack();
@@ -183,6 +274,7 @@ app.command('/show-user-info',
   } 
   
   let channelId = valid ? (channel.split('|')[0]).replace('<#', '') : command.channel_id
+  let channelName = valid ? (channel.split('|')[1]).replace('>', '') : command.channel_name
   if (!valid) {
     await say({ 
       text: 'Using current channel ' + 
@@ -192,13 +284,24 @@ app.command('/show-user-info',
   } 
   
   await say({ text: `Analyzing...`, thread_ts })
-  const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
+  const { start, end, min, max, avg } = await getUserInfo({ 
+    user: userId, channel: channelId, userName, channelName })
+  /*
+  const start = startDate ? moment(startDate) : moment().subtract(90, 'days')
   const end = endDate ? moment(endDate) : moment()
   const messages = await getMessages({ client, start, end, channel: channelId })
   const responses = await getResponses({ 
-    userId, channelId, start, end, /*client, say,*/ messages
+    userId, channelId, start, end, messages
   })
-  const { min, max, avg } = getStatistics({ responses })
+  const { min, max, avg, minNum, maxNum, avgNum, } = getStatistics({ responses })
+  const updatedUser = await updateUser({ 
+    user: userName, 
+    min: min || '', 
+    max: max || '', 
+    avg: avg || '', 
+    start: start.format('DD-MM-yyyy'), end: end.format('DD-MM-yyyy') })
+  console.log({ updatedUser })
+  */
   await say({
     text: `
       User id ${userId}
@@ -247,7 +350,7 @@ app.command('/show-users-log',
       Using current channel: ${command.channel_name}
       Using parameter seconds: 0`, thread_ts })
   }
-  const start = startDate ? moment(startDate) : moment().subtract(14, 'days')
+  const start = startDate ? moment(startDate) : moment().subtract(90, 'days')
   const end = endDate ? moment(endDate) : moment()
   await say({ text: `
     Statistics for period 
@@ -313,12 +416,23 @@ app.command('/show-users-log',
 });
 
 const init = async () => {
-  users = await getUsers({ client: app.client })
+  users = await getUsers()
   console.log(cTable.getTable(users.map(u => ({ id: u.id, name: u.name }))))
+  channels = await getChannels()
+  console.log(cTable.getTable(channels.map(c => ({ id: c.id, name: c.name }))))
 }
 
 (async () => {
-  await init()
-  await app.start(process.env.PORT || 3000);
-  console.log('⚡️ Bolt app is running!');
+  try {
+    await init()
+    await app.start(process.env.PORT || 3000);
+    await receiver.start(3002);
+    
+    console.log('⚡️ Bolt app is running!');
+   } catch(e) {
+     console.error({ e })
+     process.exit(1)
+   } finally {
+     prisma.$disconnect()
+   }
 })();
