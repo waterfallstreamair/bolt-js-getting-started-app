@@ -1,0 +1,11 @@
+.footer {
+    background-color: #000000;
+    color: #999999;
+    margin-top: auto;
+    margin-bottom: 0;
+    min-height: 56px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    justify-items: center;
+    align-items: center;
+}

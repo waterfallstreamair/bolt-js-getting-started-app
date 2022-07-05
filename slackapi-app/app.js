@@ -51,6 +51,11 @@ receiver.router.get('/api/v1/users', async (req, res) => {
   res.json({ users: allUsers })
 })
 
+receiver.router.get('/api/v1/channels', async (req, res) => {
+  console.log({ channels })
+  res.json({ channels: channels.map(e => e.name) })
+})
+
 receiver.router.put('/api/v1/user', async (req, res) => {
   const { userName, channelName } = req.body
   console.log({ userName, channelName })
@@ -307,8 +312,8 @@ app.command('/show-user-info',
       User id ${userId}
       User name ${userName}
       Statistics for period 
-        from ${start.format('DD-MM-yyyy')} 
-        to ${end.format('DD-MM-yyyy')}:
+        from ${start} 
+        to ${end}:
       Min response = ${min || 'no data'} 
       Max response = ${max || 'no data'} 
       Avg response = ${avg || 'no data'} 
