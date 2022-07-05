@@ -30,16 +30,7 @@ const receiver = new ExpressReceiver({
 receiver.router.use(bodyParser.urlencoded({ extended: true }))
 receiver.router.use(bodyParser.json())
 receiver.router.use(cors())
-/*
-const app = new App({
-  // ...,
-  receiver
-})
 
-receiver.router.post('/xyz', (req, res) => {
-  req.body
-})
-*/
 
 receiver.router.get('/hello', (req, res) => {
   res.json({ hello: 'hello'})
@@ -176,6 +167,10 @@ const getStatistics = ({ responses }) => {
 }
 
 const getMessages = async ({ start, end, channel }) => {
+  const cachedMessages = cache.get('messages')
+  if (cachedMessages) {
+    return cachedMessages
+  }
   const { client } = app
   let messages = []
   const h = await client.conversations.history({
@@ -203,6 +198,7 @@ const getMessages = async ({ start, end, channel }) => {
     replies.messages.map(r => messages.push(r))
   }))
   messages.sort((a, b) => +a.ts - b.ts)
+  cache.set('messages', messages, 15)
   return messages
 }
 
