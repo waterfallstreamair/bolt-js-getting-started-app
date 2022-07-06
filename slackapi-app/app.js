@@ -12,6 +12,7 @@ const { validateUserInfo, validateUsersLog } = require('./validator')
 
 const prisma = require('./prisma-client')
 const { updateUser, getUsers: getSavedUsers } = require('./user')
+const { setClient, getUsers, getChannels, getHistory } = require('./api')
 
 let users = null
 let channels = null
@@ -95,15 +96,15 @@ const app = new App({
 
 //let cache = {}
 
-const getUsers = async () => {
+/*const getUsers = async () => {
   const result = await app.client.users.list()
   return result.members
-}
+}*/
 
-const getChannels = async () => {
+/*const getChannels = async () => {
   const result = await app.client.conversations.list()
   return result.channels
-}
+}*/
 
 const getResponses = async ({ 
   userId, start, end, channelId, messages }) => {
@@ -161,9 +162,7 @@ const getStatistics = ({ responses }) => {
       avgNum,
     }
   } 
-  return {
-    min: null, max: null, avg: null
-  }
+  return {}
 }
 
 const getMessages = async ({ start, end, channel }) => {
@@ -171,7 +170,7 @@ const getMessages = async ({ start, end, channel }) => {
   if (cachedMessages) {
     return cachedMessages
   }
-  const { client } = app
+  /*const { client } = app
   let messages = []
   const h = await client.conversations.history({
     channel,
@@ -197,7 +196,8 @@ const getMessages = async ({ start, end, channel }) => {
     }
     replies.messages.map(r => messages.push(r))
   }))
-  messages.sort((a, b) => +a.ts - b.ts)
+  messages.sort((a, b) => +a.ts - b.ts)*/
+  const messages = await getHistory({ start, end, channel })
   cache.set('messages', messages, 15)
   return messages
 }
@@ -417,6 +417,8 @@ app.command('/show-users-log',
 });
 
 const init = async () => {
+  const { client } = app
+  setClient(client)
   users = await getUsers()
   console.log(cTable.getTable(users.map(u => ({ id: u.id, name: u.name }))))
   channels = await getChannels()
