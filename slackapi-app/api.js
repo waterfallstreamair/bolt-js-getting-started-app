@@ -8,7 +8,9 @@ const getUsers = async () => {
 }
 
 const getChannels = async () => {
-  const result = await client.conversations.list()
+  const result = await client.conversations.list({
+    types: 'public_channel, private_channel'
+  })
   return result.channels
 }
 
