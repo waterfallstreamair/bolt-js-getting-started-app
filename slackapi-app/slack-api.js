@@ -1,6 +1,6 @@
 let client
 
-const setClient = appClient => client = appClient
+const setClientToSlackApi = appClient => client = appClient
 
 const getUsers = async () => {
   const result = await client.users.list()
@@ -46,7 +46,7 @@ const getHistory = async ({ start, end, channel }) => {
 
 
 module.exports = {
-    setClient,
+    setClientToSlackApi,
     getUsers,
     getChannels,
     getHistory
