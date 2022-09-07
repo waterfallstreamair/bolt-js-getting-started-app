@@ -12,7 +12,7 @@ model Response {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   text      String?
-  ts        String   
+  ts        String
   rt        String
   user      String
   cache     Cache?   @relation(fields: [cacheId], references: [id])
@@ -40,3 +40,13 @@ model User {
   end       String
 }
 
+model Channel {
+  id        String @unique
+  name      String
+  emojiName String
+  synced    Boolean
+  type      String?
+  text      String?
+}
+
+// make - npx prisma db push - when schema was changed
