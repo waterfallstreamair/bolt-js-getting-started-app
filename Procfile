@@ -1,1 +1,1 @@
-api: nodemon slackapi-app/index.js
+web: nodemon slackapi-app/index.js
