@@ -1,0 +1,9 @@
+{
+    "name": "con-bot-app",
+    "version": "3.0.0",
+    "description": "Getting Started ⚡️ Bolt for JavaScript",
+    "scripts": {
+      "start": "cd ./slack-api && yarn && yarn start"
+    },
+    "license": "MIT"
+}

@@ -1,1 +1,0 @@
-web: cd ./slackapi-app && yarn && yarn start
