@@ -49,4 +49,37 @@ model Channel {
   text      String?
 }
 
-// make - npx prisma db push - when schema was changed
+model CandidateComment {
+  id          String @unique
+  createdAt   DateTime @default(now())
+  candidateId String
+  parentTs    String
+  ts          String
+  author      String
+  text        String
+  type        String?
+  ref         String?
+}
+
+model Candidate {
+  id         String @unique
+  createdAt  DateTime @default(now())
+  name       String
+  position   String
+  city       String
+  salary     String
+  assignees  String
+  channelId  String
+  ts         String
+  commentIds String?
+  ref        String?
+}
+
+model FiberyUser {
+  id           String @unique
+  fiberyUserId String
+  name         String
+  type         String?
+}
+
+// make - npx prisma db push - when schema was changed !

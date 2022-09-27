@@ -10,7 +10,11 @@ const { setClientToSlackApi, getUsers, getChannels, getHistory } = require('./sl
 const { initCommands } = require('./commands')
 const { initActions } = require('./actions')
 const { initEvents } = require('./events')
+const { updateCandidate } = require('./events/fibery/updateCandidate')
+const { handlingCandidate } = require('./events/fibery/handlingCandidate')
 const { getUserInfo } = require('./helpers/getUserInfo')
+const { getFiberyUsers } = require('./helpers/fibery/getFiberyUsers')
+
 
 
 let users = null
@@ -29,6 +33,7 @@ const config = require("dotenv").config().parsed;
 for (const k in config) {
   process.env[k] = config[k];
 }
+
 //console.log(process.env)
 
 const receiver = new ExpressReceiver({
@@ -66,6 +71,14 @@ receiver.router.put('/api/v1/user', async (req, res) => {
   res.json({ updatedUser })
 })
 
+receiver.router.put('/api/fibery/candidate', (req, res) => {
+  // console.log('body put', req.body)
+  const { candidate, type } = req.body
+  handlingCandidate(type, candidate[0], channels)
+  res.json({ update_candidate: 'candidate'})
+})
+
+
 const init = async () => {
   const { client } = app
   setClientToSlackApi(client)
@@ -76,13 +89,14 @@ const init = async () => {
   initCommands({users, channels})
   initActions({channels, setReactionAddedMode})
   initEvents({users, getReactionAddedMode})
+  getFiberyUsers()
 }
 
 (async () => {
   try {
     await init()
     await app.start(process.env.PORT || 3000);
-    await receiver.start(3002);
+    await receiver.start(process.env.API_PORT || 3002);
 
     console.log('⚡️ Bolt app is running!');
    } catch(e) {

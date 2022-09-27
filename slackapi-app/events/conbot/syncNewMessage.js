@@ -1,6 +1,7 @@
 const { app } = require('../../app')
 //const prisma = require('../../prisma-client')
-const { checkSyncedThread } = require('../../bot-utils')
+const { checkSyncedThread, checkSyncedThreadWithFiberyCandidate } = require('../../bot-utils')
+const { sendCommentToFiberyCandidate } = require('../../helpers/fibery/sendCommentToFiberyCandidate')
 
 
 const syncNewMessage = ({users}) => {
@@ -13,10 +14,13 @@ const syncNewMessage = ({users}) => {
               channel: event.channel,
               ts: thread_ts,
             })
-            const threadSynced = checkSyncedThread(replies.messages)
-            if (threadSynced) {
+
+            const threadSyncedWithFiberyCandidate = checkSyncedThreadWithFiberyCandidate(replies.messages)
+            const threadSyncedWithInternalChannels = checkSyncedThread(replies.messages)
+
+            if (threadSyncedWithInternalChannels) {
               const userName = users.filter(u => u.id === user)[0].name
-              for await (const thread of threadSynced) {
+              for await (const thread of threadSyncedWithInternalChannels) {
                   const postToTarget = await client.chat.postMessage({
                     channel: thread.id,
                     thread_ts: thread.ts,
@@ -26,6 +30,11 @@ const syncNewMessage = ({users}) => {
                     `,
                   })
               }
+            }
+
+            if (threadSyncedWithFiberyCandidate) {
+              const userName = users.filter(u => u.id === user)[0].name
+              sendCommentToFiberyCandidate(threadSyncedWithFiberyCandidate, text, userName)
             }
           }
           catch(e) {

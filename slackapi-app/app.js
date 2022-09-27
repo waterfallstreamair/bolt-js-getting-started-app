@@ -1,4 +1,4 @@
-const { App, ExpressReceiver } = require('@slack/bolt')
+const { App } = require('@slack/bolt')
 const config = require("dotenv").config().parsed
 
 const token = config.SLACK_BOT_TOKEN || process.env.SLACK_BOT_TOKEN
