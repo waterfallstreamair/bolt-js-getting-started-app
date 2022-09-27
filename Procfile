@@ -1,1 +1,1 @@
-web: nodemon slackapi-app/index.js
+web: cd ./slackapi-app && yarn && yarn start
