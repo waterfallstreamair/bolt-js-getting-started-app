@@ -1,4 +1,4 @@
-const prisma = require('./prisma-client')
+const prisma = require('../prisma-client')
 
 const updateUser = async ({ user, channel, min, max, avg, start, end }) => {
   return prisma.user.upsert({
